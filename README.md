@@ -1,6 +1,7 @@
-강의 출처: https://www.inflearn.com/course/%EC%BD%94%EC%96%B4-%EC%8A%A4%ED%94%84%EB%A7%81-%EC%8B%9C%ED%81%90%EB%A6%AC%ED%8B%B0/dashboard
+[강의 출처](https://www.inflearn.com/course/%EC%BD%94%EC%96%B4-%EC%8A%A4%ED%94%84%EB%A7%81-%EC%8B%9C%ED%81%90%EB%A6%AC%ED%8B%B0/dashboard)
 ===
 
+## 섹션1. 스프링 시큐리티 기본 API 및 Filter 이해
 UsernamePasswordAuthenticationFilter
 ---
 - 필터가 최초에 리퀘스트 요청을 받게 된다.
@@ -71,3 +72,90 @@ AnonymousAuthenticationFilter
 - 만약 존재하지 않는다면, ROLE_ANONYMOUS권한 정보를 가진 AnonymousAuthenticationToken을 생성해 SecurityContext에 담게 된다.
 - 화면에서 인증 여부를 구현할 때 isAnonymous()와 isAuthenticated()로 구분해서 사용한다
 - 익명사용자의 경우 인증객체는 세션에 저장하지 않는다.
+
+세션 제어
+---
+동시세션제어
+- 최대 세션 허용 개수 초과를 하지 않게 제어한다.
+- 두 가지 방법이 있다. 이전 사용자 세션 만료와 현재 사용자 인증 실패
+- http.sessionManagement() 함수를 통해 세션관리 기능을 동작 시킨다.
+
+세션 고정 보호
+  - 사용자 인증마다 새로운 세션,쿠키를 발급함으로써 세션탈취공격을 방지하는 방식
+    - 기본값(changeSessionId)
+    - none
+    - migrateSession(이전 세션에 덮어씌움)
+    - newSession(세션이 새로 발급되지만 이전 세션에 발급된 속성값을 전부 새로 설정해줘야함)
+
+세션 정책
+- SessionCreationPolicy를 이용한 정책 설정
+  - Always: 스프링 시큐리티가 항상 세션 생성
+  - If_Required: 필요 시 생성(기본값)
+  - Never: 생성하지않지만 이미 존재하면 사용
+  - Stateless: 생성하지 않고 존재해도 사용하지 않음
+
+SessionManagementFilter, ConcurrentSessionFilter
+---
+
+SessionManagementFilter
+- 역할
+  - 세션관리: 인증 시 사용자의 세션정보를 등록, 조회, 삭제 등의 세션 이력을 관리
+  - 동시적 세션 제어: 동일 계정으로 접속이 허용되는 최대 세션수를 제한
+  - 세션 고정 보호: 인증 할 때마다 세션 쿠키를 새로 발급하여 공격자의 쿠키 조작을 방지
+  - 세션 생성 정책: Always, If_Required, Never, Stateless
+
+ConcurrentSessionFilter
+- 역할
+  - 매 요청마다 현재 사용자의 세션 만료 여부 체크
+  - 세션이 만료되었을 경우 즉시 만료 처리
+  - session.isExpired() == true
+    - 로그아웃 처리
+    - 즉시 오류페이지 응답
+
+SessionManagementFilter, ConcurrentSessionFilter 인증 흐름
+1. ConcurrentSessionControlAuthenticationStrategy
+2. ChangeSessionIdAuthenticationStrategy
+3. RegisterAuthenticationStrategy
+- **여기서 1.5에서 2.5 정도에 SessionManagementFilter가 위치해있다.**
+4. 3에서 세션(session 1)이 등록 된다.
+5. 이때 다른 위치에서 로그인을 또 하게되면 maxSessions를 체크해 초과한다면 기존 세션을 만료 시키고 새로운 세션을 등록한다(session 2)
+6. 이후에 sessions 1이 서버에 요청을 보내면 세션만료가 됐다는 인포를 받게된다.
+
+권한 설정 및 표현식
+---
+- 선언적 방식, 동적 방식(DB 연동 프로그래밍)이 있다
+- URL방식: http.antMatchers("/users/**").hasRole("USER")
+  - 설정 시 구체적인 경로가 먼저 오고 그것보다 큰 범위의 경로가 뒤에 와야한다
+  - 표현식: SecurityConfig에 작성.
+- method: @PreAuthorize("hasRole('USER')") 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
