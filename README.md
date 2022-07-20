@@ -129,19 +129,43 @@ SessionManagementFilter, ConcurrentSessionFilter 인증 흐름
   - 표현식: SecurityConfig에 작성.
 - method: @PreAuthorize("hasRole('USER')") 
 
+ExceptionTranslationFilter, RequestCacheAwareFilter
+---
+- ExceptionTranslationFilter
+  - AuthenticationException(인증)과 AccessDeniedException(인가)에 대한 예외 처리를 담당한다.
+  - ExceptionTranslationFilter try/catch로 감싸서 FilterSecurityInterceptor를 호출해 예외 처리
+- AuthenticationException
+  - 인증예외 처리
+    - AuthenticationEntryPoint 호출
+      - 로그인 페이지 이동, 401오류 코드 전달 등
+    - 인증 예외가 발생가지 전의 요청 정보를 저장
+      - RequestCache - 사용자의 이전 요청 정보를 세션에 저장하고 이를 꺼내 오는 캐시 메카니즘
+        - SavedRequest - 사용자가 요청했던 request 파라미터 값들, 그 당시의 헤더값들 등이 저장
+- AccessDeniedException
+  - 인가 예외 처리
+    - AccessDeniedHandler에서 예외 처리하도록 제공
+- 인증/인가 흐름
+  - 인증정보가 없는 유저가 페이지에 접근한다고 가정
+    - FilterSecurityInterceptor에 의해 인증 예외인지 인가 예외인지 구분해 ExceptionTranslationFilter로 넘기게 된다.
+      - *좀 더 정확히는 최초에는 인가예외를 발생시키게 되지만 AccessDeniedHandler로 넘기지 않고 AuthenticationException으로 넘기게 된다.*
+      1. AuthenticationException에 넘어갔다가 인증실패 처리 후 AuthenticationEntryPoint로 넘겨 로그인 페이지로 리다이렉트 시킨다. 
+      2. 실패처리를 하기 전에 요청을 보냈던 유저의 요청정보를 DefaultSavedRequest객체에 저장을 하고 이 객체를 세션에 저장하게 된다. 이 과정은 HttpSessionRequestCache에 의해 동작한다.
+  - 인가정보가 없는 유저가 페이지에 접근한다고 가정
+    - FilterSecurityInterceptor에 의해 인증 예외인지 인가 예외인지 구분해 ExceptionTranslationFilter로 넘기게 된다.
+      - AccessDeniedException을 발생시키고 AccessDeniedHandler를 호출해 후속작업 처리한다.(자원에 접근못한다는 메세지라던가 등등)
+- RequestCacheAwareFilter
+  - 현재 세션에 캐싱돼있던 리퀘스트 객체를 가져와 해당 정보에 맞게 리다이렉트 해준다.
+- 실습코드는 SecurityConfig에 exceptionHandling()위치에 있다.
 
-
-
-
-
-
-
-
-
-
-
-
-
+CSRF, CsrfFilter
+---
+- CSRF(사이트 간 요청 위조)
+  - 공격자가 특정 사용자에게 심어놓은 코드를 통해 특정 사이트에 주입함으로써 공격자가 의도한 대로 요청에 대한 응답을 받는 것
+- CsrfFilter
+  - 모든 요청에 랜덤하게 생성된 토큰을 HTTP 파라미터로 요구
+  - 요청 시 전달되는 토큰 값과 서버에 저장된 실제 값과 비교한 후 만약 일치하지 않으면 요청은 실패한다.
+- Spring Security에서 CSRF는 활성화가 Default이다
+- 
 
 
 

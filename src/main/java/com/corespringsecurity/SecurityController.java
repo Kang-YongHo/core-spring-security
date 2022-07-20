@@ -30,4 +30,11 @@ public class SecurityController {
     public String sysPage(){
         return "ADMIN,SYS ROLE PAGE";
     }
+
+    @GetMapping("/denied")
+    public String denied(){
+        return "Access Denied Page";
+    }
+
+
 }

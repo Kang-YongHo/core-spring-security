@@ -1,25 +1,22 @@
 package com.corespringsecurity.config;
 
-import static org.springframework.security.authorization.AuthorityAuthorizationManager.hasRole;
 import static org.springframework.security.config.Customizer.withDefaults;
 
-import java.util.Optional;
 import javax.servlet.http.HttpSession;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.User.UserBuilder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+import org.springframework.security.web.savedrequest.SavedRequest;
 
 
 @Configuration
@@ -31,7 +28,7 @@ public class SecurityConfig {
     UserDetailsService userDetailsService;
 
     @Bean
-    public InMemoryUserDetailsManager userDetailsManager(){
+    public InMemoryUserDetailsManager userDetailsManager() {
         //변경된 방식의 In-Memory Authentication
         UserDetails user = User.withUsername("user")
             .password("{noop}1234")
@@ -45,7 +42,7 @@ public class SecurityConfig {
             .password("{noop}1234")
             .roles("SYS")
             .build();
-        return new InMemoryUserDetailsManager(user,admin,sys);
+        return new InMemoryUserDetailsManager(user, admin, sys);
     }
 
     @Bean
@@ -90,6 +87,7 @@ public class SecurityConfig {
 
         http
             .authorizeRequests((authorize) -> authorize
+                .antMatchers("/login").permitAll()
                 .antMatchers("/user").hasRole("USER")
                 .antMatchers("/admin/pay").access("hasRole('ADMIN')")
                 .antMatchers("/sys/**").access("hasRole('SYS') or hasRole('ADMIN')")
@@ -104,7 +102,11 @@ public class SecurityConfig {
                     .successHandler((request, response, authentication) -> {
                         // 인증 성공 핸들러를 통해 추가적인 행동을 할 수 있다.
                         System.out.println("name :: " + authentication.getName());
-                        response.sendRedirect("/");
+                        HttpSessionRequestCache httpSessionRequestCache = new HttpSessionRequestCache();
+                        SavedRequest savedRequest = httpSessionRequestCache.getRequest(request,
+                            response);
+                        String redirectUrl = savedRequest.getRedirectUrl();
+                        response.sendRedirect(redirectUrl);
                     })
                     .failureHandler((request, response, exception) -> {
                         // 인증 실패 핸들러를 통해 추가적인 행동을 할 수 있다.
@@ -149,7 +151,23 @@ public class SecurityConfig {
             .expiredUrl("/expired")   //세션만료 시 이동할 페이지
         ;
 
+        //인증/인가 처리
+        http
+            .exceptionHandling()
+            .authenticationEntryPoint(authenticationEntryPoint()) //인증실패 처리
+            .accessDeniedHandler(accessDeniedHandler())
+        ;      //인가실패 처리
+
         return http.build();
     }
 
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> response.sendRedirect("/login");
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) -> response.sendRedirect("/denied");
+    }
 }
